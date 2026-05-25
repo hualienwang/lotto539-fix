@@ -5,6 +5,7 @@ import pytest
 from backtest import (
     DEFAULT_PAYOUTS,
     BacktestConfig,
+    choose_filtered_frequency_numbers,
     choose_frequency_numbers,
     choose_random_numbers,
     run_backtest,
@@ -20,6 +21,21 @@ def test_choose_frequency_numbers_uses_highest_counts_with_number_tie_breaker():
     ]
 
     assert choose_frequency_numbers(training_draws) == (1, 2, 3, 4, 5)
+
+
+def test_choose_filtered_frequency_numbers_skips_low_quality_top_frequency_combo():
+    training_draws = [
+        Draw("1", date(2026, 1, 1), (1, 2, 3, 4, 5), 0),
+        Draw("2", date(2026, 1, 2), (1, 2, 3, 4, 6), 0),
+        Draw("3", date(2026, 1, 3), (7, 14, 22, 31, 39), 0),
+        Draw("4", date(2026, 1, 4), (8, 15, 23, 32, 38), 0),
+    ]
+
+    assert choose_frequency_numbers(training_draws) == (1, 2, 3, 4, 5)
+    filtered = choose_filtered_frequency_numbers(training_draws)
+
+    assert filtered != (1, 2, 3, 4, 5)
+    assert len(filtered) == 5
 
 
 def test_choose_random_numbers_is_reproducible_with_seed():
@@ -75,6 +91,21 @@ def test_recent_frequency_uses_only_draws_before_target_date():
 
     assert result.predictions[0].predicted_numbers == (1, 2, 3, 4, 5)
     assert result.predictions[1].predicted_numbers == (1, 2, 3, 6, 7)
+
+
+def test_filtered_frequency_strategy_uses_statistical_filters():
+    draws = [
+        Draw("1", date(2025, 1, 1), (1, 2, 3, 4, 5), 0),
+        Draw("2", date(2025, 1, 2), (1, 2, 3, 4, 6), 0),
+        Draw("3", date(2025, 1, 3), (7, 14, 22, 31, 39), 0),
+        Draw("4", date(2025, 1, 4), (8, 15, 23, 32, 38), 0),
+        Draw("5", date(2025, 1, 5), (7, 15, 23, 31, 39), 0),
+    ]
+    config = BacktestConfig(strategy="filtered-frequency", test_from=date(2025, 1, 5))
+
+    result = run_backtest(draws, config)
+
+    assert result.predictions[0].predicted_numbers != (1, 2, 3, 4, 5)
 
 
 def test_run_backtest_rejects_empty_test_window():

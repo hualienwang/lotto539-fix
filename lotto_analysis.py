@@ -1,6 +1,7 @@
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
+from itertools import combinations
 from pathlib import Path
 import sqlite3
 
@@ -72,6 +73,48 @@ def summarize_draw(draw: Draw) -> dict[str, object]:
         "even_count": 5 - odd_count,
         "tails": tuple(sorted(number % 10 for number in draw.numbers)),
     }
+
+
+def calculate_ac_value(numbers) -> int:
+    ordered = tuple(sorted(numbers))
+    differences = {
+        abs(first - second) for first, second in combinations(ordered, 2)
+    }
+    return len(differences) - (len(ordered) - 1)
+
+
+def has_allowed_consecutive_pattern(numbers) -> bool:
+    ordered = tuple(sorted(numbers))
+    consecutive_pairs = 0
+    current_run = 1
+
+    for previous, current in zip(ordered, ordered[1:]):
+        if current - previous == 1:
+            consecutive_pairs += 1
+            current_run += 1
+            if current_run >= 3:
+                return False
+        else:
+            current_run = 1
+
+    return consecutive_pairs <= 1
+
+
+def count_tail_pairs(numbers) -> int:
+    tail_counts = Counter(number % 10 for number in numbers)
+    return sum(count * (count - 1) // 2 for count in tail_counts.values())
+
+
+def has_allowed_tail_pattern(numbers) -> bool:
+    return count_tail_pairs(numbers) <= 1
+
+
+def is_quality_combination(numbers, min_ac_value: int = 4) -> bool:
+    return (
+        calculate_ac_value(numbers) >= min_ac_value
+        and has_allowed_consecutive_pattern(numbers)
+        and has_allowed_tail_pattern(numbers)
+    )
 
 
 def count_number_frequency(draws) -> dict[int, int]:

@@ -1,10 +1,17 @@
 import argparse
 from dataclasses import dataclass, field
 from datetime import date
+from itertools import combinations
 import random
 from pathlib import Path
 
-from lotto_analysis import Draw, count_number_frequency, load_draws
+from lotto_analysis import (
+    Draw,
+    count_number_frequency,
+    count_tail_pairs,
+    is_quality_combination,
+    load_draws,
+)
 
 
 DEFAULT_PAYOUTS = {0: 0, 1: 0, 2: 50, 3: 300, 4: 20000, 5: 8000000}
@@ -61,6 +68,38 @@ def choose_frequency_numbers(draws: list[Draw]) -> tuple[int, ...]:
     return tuple(sorted(chosen))
 
 
+def choose_filtered_frequency_numbers(
+    draws: list[Draw], candidate_pool_size: int = 15
+) -> tuple[int, ...]:
+    frequency = count_number_frequency(draws)
+    ranked_numbers = sorted(
+        range(1, 40), key=lambda number: (-frequency.get(number, 0), number)
+    )
+    candidate_pool = ranked_numbers[:candidate_pool_size]
+    best_combo = None
+    best_score = None
+
+    for combo in combinations(candidate_pool, 5):
+        if not is_quality_combination(combo):
+            continue
+
+        tail_bonus = 1 if count_tail_pairs(combo) == 1 else 0
+        score = (
+            sum(frequency.get(number, 0) for number in combo),
+            tail_bonus,
+            -sum(combo),
+            tuple(-number for number in sorted(combo)),
+        )
+        if best_score is None or score > best_score:
+            best_score = score
+            best_combo = combo
+
+    if best_combo is None:
+        return choose_frequency_numbers(draws)
+
+    return tuple(sorted(best_combo))
+
+
 def run_backtest(draws: list[Draw], config: BacktestConfig) -> BacktestResult:
     ordered_draws = sorted(draws, key=lambda draw: (draw.draw_date, draw.issue))
     test_draws = [
@@ -90,6 +129,8 @@ def run_backtest(draws: list[Draw], config: BacktestConfig) -> BacktestResult:
             predicted = tuple(sorted(rng.sample(range(1, 40), 5)))
         elif config.strategy == "frequency":
             predicted = choose_frequency_numbers(training_draws)
+        elif config.strategy == "filtered-frequency":
+            predicted = choose_filtered_frequency_numbers(training_draws)
         elif config.strategy == "recent-frequency":
             predicted = choose_frequency_numbers(prior_draws[-config.recent_window :])
         else:
@@ -146,7 +187,7 @@ def main():
     parser.add_argument("--db", default="lotto-539.db", help="SQLite database path")
     parser.add_argument(
         "--strategy",
-        choices=["random", "frequency", "recent-frequency"],
+        choices=["random", "frequency", "filtered-frequency", "recent-frequency"],
         default="frequency",
     )
     parser.add_argument("--train-before", help="Training cutoff date in YYYY-MM-DD")

@@ -7,6 +7,7 @@ import pytest
 
 from app import (
     BadRequestError,
+    DASHBOARD_HTML,
     build_backtest_response,
     build_summary,
     create_handler,
@@ -86,6 +87,31 @@ def test_build_backtest_response_runs_frequency_strategy(tmp_path):
     }
     assert response["predictions"][0]["issue"] == "115000003"
     assert response["predictions"][0]["predicted_numbers"] == [1, 2, 3, 4, 5]
+
+
+def test_build_backtest_response_runs_filtered_frequency_strategy(tmp_path):
+    db_path = tmp_path / "lotto-539.db"
+    create_history_db(db_path)
+
+    response = build_backtest_response(
+        db_path,
+        {
+            "strategy": "filtered-frequency",
+            "test_from": "2026-01-03",
+            "recent_window": 20,
+            "ticket_cost": 50,
+        },
+    )
+
+    assert response["strategy"] == "filtered-frequency"
+    assert response["total_draws"] == 1
+    assert len(response["predictions"][0]["predicted_numbers"]) == 5
+
+
+def test_dashboard_exposes_filtered_frequency_strategy_in_page():
+    assert 'value="filtered-frequency"' in DASHBOARD_HTML
+    assert "Filtered Frequency (AC / Tail / Consecutive)" in DASHBOARD_HTML
+    assert 'id="resultStrategy"' in DASHBOARD_HTML
 
 
 @pytest.mark.parametrize(

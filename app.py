@@ -43,7 +43,7 @@ def build_summary(db_path: Path) -> dict[str, object]:
 
 def build_backtest_response(db_path: Path, payload: dict[str, object]) -> dict[str, object]:
     strategy = payload.get("strategy", "frequency")
-    if strategy not in {"random", "frequency", "recent-frequency"}:
+    if strategy not in {"random", "frequency", "filtered-frequency", "recent-frequency"}:
         raise BadRequestError(f"Invalid strategy: {strategy}")
 
     recent_window = parse_int_with_default(payload.get("recent_window"), 20)
@@ -244,7 +244,7 @@ DASHBOARD_HTML = r"""<!doctype html>
     }
     .result-line {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
       margin-bottom: 14px;
     }
@@ -298,6 +298,7 @@ DASHBOARD_HTML = r"""<!doctype html>
           <label>Strategy
             <select name="strategy">
               <option value="frequency">Frequency</option>
+              <option value="filtered-frequency">Filtered Frequency (AC / Tail / Consecutive)</option>
               <option value="recent-frequency">Recent Frequency</option>
               <option value="random">Random</option>
             </select>
@@ -326,6 +327,7 @@ DASHBOARD_HTML = r"""<!doctype html>
       <div class="panel">
         <h2>Results</h2>
         <div class="result-line">
+          <div><span>Strategy</span><strong id="resultStrategy">-</strong></div>
           <div><span>Draws</span><strong id="resultDraws">-</strong></div>
           <div><span>Avg Hits</span><strong id="resultAvg">-</strong></div>
           <div><span>Payout</span><strong id="resultPayout">-</strong></div>
@@ -385,6 +387,7 @@ DASHBOARD_HTML = r"""<!doctype html>
     }
 
     function renderBacktest(result) {
+      $("resultStrategy").textContent = result.strategy;
       $("resultDraws").textContent = result.total_draws;
       $("resultAvg").textContent = result.average_hits.toFixed(3);
       $("resultPayout").textContent = result.estimated_payout;

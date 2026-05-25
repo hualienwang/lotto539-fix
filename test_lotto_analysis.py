@@ -5,7 +5,12 @@ import pytest
 
 from lotto_analysis import (
     Draw,
+    calculate_ac_value,
     count_number_frequency,
+    count_tail_pairs,
+    has_allowed_consecutive_pattern,
+    has_allowed_tail_pattern,
+    is_quality_combination,
     load_draws,
     parse_numbers,
     parse_roc_date,
@@ -52,6 +57,54 @@ def test_summarize_draw_returns_basic_features():
         "even_count": 4,
         "tails": (4, 5, 6, 6, 8),
     }
+
+
+def test_calculate_ac_value_counts_unique_pairwise_differences_minus_four():
+    assert calculate_ac_value((1, 2, 3, 4, 5)) == 0
+    assert calculate_ac_value((1, 2, 4, 8, 13)) == 6
+
+
+@pytest.mark.parametrize(
+    ("numbers", "expected"),
+    [
+        ((1, 3, 8, 14, 29), True),
+        ((1, 2, 8, 14, 29), True),
+        ((1, 2, 3, 14, 29), False),
+        ((1, 2, 8, 9, 29), False),
+    ],
+)
+def test_has_allowed_consecutive_pattern_allows_at_most_one_pair(numbers, expected):
+    assert has_allowed_consecutive_pattern(numbers) is expected
+
+
+@pytest.mark.parametrize(
+    ("numbers", "expected"),
+    [
+        ((3, 13, 21, 28, 39), 1),
+        ((3, 13, 23, 28, 39), 3),
+        ((1, 8, 14, 27, 39), 0),
+    ],
+)
+def test_count_tail_pairs_counts_same_tail_pair_pressure(numbers, expected):
+    assert count_tail_pairs(numbers) == expected
+
+
+@pytest.mark.parametrize(
+    ("numbers", "expected"),
+    [
+        ((3, 13, 21, 28, 39), True),
+        ((1, 8, 14, 27, 39), True),
+        ((3, 13, 23, 28, 39), False),
+    ],
+)
+def test_has_allowed_tail_pattern_rejects_three_or_more_same_tail(numbers, expected):
+    assert has_allowed_tail_pattern(numbers) is expected
+
+
+def test_is_quality_combination_combines_ac_consecutive_and_tail_filters():
+    assert is_quality_combination((2, 9, 17, 28, 39)) is True
+    assert is_quality_combination((1, 2, 3, 4, 5)) is False
+    assert is_quality_combination((3, 13, 23, 28, 39)) is False
 
 
 def test_count_number_frequency_counts_numbers_and_breaks_ties_by_number():
