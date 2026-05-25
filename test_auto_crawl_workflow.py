@@ -8,7 +8,7 @@ def test_auto_crawl_workflow_runs_daily_and_can_be_started_manually():
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 
     assert "schedule:" in workflow
-    assert "30 14 * * *" in workflow
+    assert "30 13 * * *" in workflow
     assert "workflow_dispatch:" in workflow
 
 
