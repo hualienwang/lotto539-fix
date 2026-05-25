@@ -50,3 +50,22 @@ def test_save_history_only_inserts_missing_records(tmp_path):
     assert first_inserted == 1
     assert second_inserted == 1
     assert rows == [("115000126", 1), ("115000127", 0)]
+
+
+def test_save_history_creates_draw_date_index(tmp_path):
+    db_path = tmp_path / "lotto-539.db"
+    record = {
+        "期別": "115000126",
+        "開獎日": "115/05/23",
+        "大小順序": "06 15 16 24 38",
+        "頭獎中獎注數": 1,
+    }
+
+    save_history(db_path, [record])
+
+    with sqlite3.connect(db_path) as conn:
+        indexes = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name"
+        ).fetchall()
+
+    assert ("idx_history_draw_date",) in indexes

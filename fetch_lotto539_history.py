@@ -134,6 +134,9 @@ def save_history(db_path, records):
             )
             """
         )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_history_draw_date ON history ("開獎日")'
+        )
         before_count = conn.total_changes
         conn.executemany(
             """
